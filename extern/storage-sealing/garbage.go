@@ -2,6 +2,9 @@ package sealing
 
 import (
 	"context"
+	"github.com/filecoin-project/go-state-types/abi"
+	scClient "github.com/moran666666/sector-counter/client"
+	"os"
 
 	"golang.org/x/xerrors"
 
@@ -28,9 +31,19 @@ func (m *Sealing) PledgeSector(ctx context.Context) (storage.SectorRef, error) {
 		return storage.SectorRef{}, xerrors.Errorf("getting seal proof type: %w", err)
 	}
 
-	sid, err := m.sc.Next()
-	if err != nil {
-		return storage.SectorRef{}, xerrors.Errorf("generating sector number: %w", err)
+	var sid abi.SectorNumber
+	if _, ok := os.LookupEnv("SC_TYPE"); ok {
+		sid0, err := scClient.NewClient().GetSectorID(context.Background(), "")
+		if err != nil {
+			return storage.SectorRef{}, xerrors.Errorf("generating sector number: %w", err)
+		}
+		sid = abi.SectorNumber(sid0)
+	} else {
+		sid0, err := m.sc.Next()
+		if err != nil {
+			return storage.SectorRef{}, xerrors.Errorf("generating sector number: %w", err)
+		}
+		sid = sid0
 	}
 	sectorID := m.minerSector(spt, sid)
 	err = m.sealer.NewSector(ctx, sectorID)
